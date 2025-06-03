@@ -113,7 +113,7 @@ The original version uses **BioBART v2** (Transformer model for biomedical domai
 
 ## ⚠️ NOTE
 
-This model gives irrelevant results to users queries the sole purpose of this project is to Show Full Stack Capabilities.
+This model gives irrelevant results to users queries and the sole purpose of this project is to Show Full Stack Capabilities.
 
 ---
 
