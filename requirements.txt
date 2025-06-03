@@ -1,0 +1,16 @@
+pandas
+numpy
+datasets
+transformers
+accelerate
+peft
+bitsandbytes
+evaluate
+rouge_score
+nltk
+scikit-learn
+sentence-transformers
+faiss-cpu
+fastapi
+uvicorn
+
