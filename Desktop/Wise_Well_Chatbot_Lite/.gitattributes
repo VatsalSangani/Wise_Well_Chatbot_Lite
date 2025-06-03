@@ -1,0 +1,2 @@
+Wise_well_chatbot_frontend filter=lfs diff=lfs merge=lfs -text
+Wise_Well_chatbot_frontend/** filter=lfs diff=lfs merge=lfs -text
