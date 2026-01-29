@@ -24,14 +24,7 @@
 - ✅ **Answers** only with strong evidence support
 - ✅ **Transparent** decision-making (ANSWER/ABSTAIN/REFUSE)
 
-### ⚡ **Performance**
-- Response Time: <2 seconds
-- Cost: ~$0.0003 per query
-- Zero hallucinations (evidence-only)
-- 10-20 queries/second throughput
-
 ---
-
 ## 🏗️ Architecture
 
 ```
