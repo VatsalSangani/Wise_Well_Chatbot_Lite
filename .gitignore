@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project Specific
+kb
+kb/indexes/              # Large FAISS indexes (don't commit)
+audit_logs/*.jsonl       # Runtime logs
+*.log
+pubmed_baseline
+frontend/node_modules/
+
+
+# Environment Variables
+.env
+.env.local
+.env.production
+.env.staging
+frontend/.env
+
+# Docker
+.dockerignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Docker
+docker-compose.yml
+Dockerfile
+Dockerfile.frontend
+
+.github/

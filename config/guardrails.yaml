@@ -1,0 +1,351 @@
+# WiseWell Guardrails Configuration - COMPLETE VERSION
+# All required keys for validation
+
+# ============================================================================
+# Input Validation
+# ============================================================================
+min_query_chars: 10
+max_query_chars: 500
+
+# ============================================================================
+# Stopwords (common words to filter)
+# ============================================================================
+stopwords:
+  - "the"
+  - "a"
+  - "an"
+  - "and"
+  - "or"
+  - "but"
+  - "in"
+  - "on"
+  - "at"
+  - "to"
+  - "for"
+  - "of"
+  - "with"
+  - "by"
+  - "from"
+  - "as"
+  - "is"
+  - "was"
+  - "are"
+  - "were"
+  - "be"
+  - "been"
+  - "being"
+  - "have"
+  - "has"
+  - "had"
+  - "do"
+  - "does"
+  - "did"
+  - "will"
+  - "would"
+  - "should"
+  - "could"
+  - "may"
+  - "might"
+  - "can"
+
+# ============================================================================
+# Generic tokens (non-specific medical terms)
+# ============================================================================
+generic_tokens:
+  - "thing"
+  - "stuff"
+  - "this"
+  - "that"
+  - "it"
+  - "something"
+  - "anything"
+
+# ============================================================================
+# Injection patterns (security - prompt injection attempts)
+# ============================================================================
+injection_patterns:
+  - "ignore previous"
+  - "ignore all previous"
+  - "disregard previous"
+  - "forget previous"
+  - "new instructions"
+  - "system prompt"
+  - "you are now"
+  - "your new role"
+  - "override"
+
+# ============================================================================
+# Refuse patterns (personal medical advice indicators)
+# ============================================================================
+refuse_patterns:
+  - "should i"
+  - "can i take"
+  - "is it safe for me"
+  - "recommend for me"
+  - "prescribe"
+  - "my dose"
+  - "my dosage"
+  - "how much should i"
+  - "i have"
+  - "i'm taking"
+  - "my doctor"
+  - "for me"
+  - "my symptoms"
+  - "i'm experiencing"
+
+# ============================================================================
+# Broad question patterns (too vague queries)
+# ============================================================================
+broad_question_patterns:
+  - "tell me about"
+  - "what about"
+  - "anything about"
+  - "everything about"
+  - "all information"
+  - "general information"
+
+# ============================================================================
+# Evidence anchors (key medical terms)
+# ============================================================================
+evidence_anchors:
+  - "study"
+  - "trial"
+  - "research"
+  - "clinical"
+  - "patient"
+  - "treatment"
+  - "therapy"
+  - "mechanism"
+  - "pathway"
+  - "receptor"
+  - "inhibitor"
+  - "agonist"
+  - "antagonist"
+
+# ============================================================================
+# Underspecified patterns (vague references)
+# ============================================================================
+underspecified_patterns:
+  - "this number"
+  - "these results"
+  - "my test"
+  - "my results"
+  - "why is it"
+  - "what does it mean"
+  - "is it high"
+  - "is it low"
+  - "is it normal"
+
+# ============================================================================
+# Unit patterns (measurement units to filter as noise)
+# ============================================================================
+unit_patterns:
+  - "mg/dl"
+  - "mg/l"
+  - "mmol/l"
+  - "g/dl"
+  - "iu/ml"
+  - "ng/ml"
+  - "pg/ml"
+  - "nmol/l"
+  - "pmol/l"
+  - "umol/l"
+
+# ============================================================================
+# Drug suffix patterns (to identify drug names)
+# ============================================================================
+drug_suffix_patterns:
+  - "mab"     # monoclonal antibodies (tocilizumab, adalimumab)
+  - "nib"     # kinase inhibitors (imatinib)
+  - "stat"    # statins (atorvastatin)
+  - "pril"    # ACE inhibitors (enalapril)
+  - "olol"    # beta blockers (metoprolol)
+  - "pine"    # calcium channel blockers (amlodipine)
+  - "zole"    # proton pump inhibitors (omeprazole)
+  - "tide"    # peptides (exenatide)
+
+# ============================================================================
+# Biomarker tokens (Tier 0 anchors for topic consistency)
+# ============================================================================
+biomarker_tokens:
+  - "crp"
+  - "c-reactive protein"
+  - "hba1c"
+  - "hemoglobin a1c"
+  - "tsh"
+  - "thyroid stimulating hormone"
+  - "ldl"
+  - "hdl"
+  - "cholesterol"
+  - "triglycerides"
+  - "esr"
+  - "erythrocyte sedimentation rate"
+  - "alt"
+  - "alanine aminotransferase"
+  - "ast"
+  - "aspartate aminotransferase"
+  - "ferritin"
+  - "troponin"
+  - "il-6"
+  - "il6"
+  - "interleukin-6"
+  - "tnf"
+  - "tnf-alpha"
+  - "tumor necrosis factor"
+  - "cortisol"
+  - "insulin"
+  - "glucose"
+  - "hemoglobin"
+  - "hematocrit"
+  - "platelet"
+  - "platelets"
+  - "wbc"
+  - "white blood cell"
+  - "neutrophil"
+  - "lymphocyte"
+  - "egfr"
+  - "creatinine"
+  - "bun"
+  - "blood urea nitrogen"
+  - "bilirubin"
+  - "albumin"
+  - "alkaline phosphatase"
+  - "ggt"
+
+# ============================================================================
+# Unit noise tokens (to filter from query anchors)
+# ============================================================================
+unit_noise_tokens:
+  - "l"
+  - "dl"
+  - "ul"
+  - "ml"
+  - "iu"
+  - "kg"
+  - "lb"
+  - "mm"
+  - "cm"
+  - "mg"
+  - "g"
+  - "mmol"
+  - "mol"
+  - "pmol"
+  - "nmol"
+  - "umol"
+  - "ng"
+  - "ug"
+  - "pg"
+  - "%"
+  - "per"
+  - "day"
+  - "week"
+  - "month"
+  - "year"
+
+# ============================================================================
+# Verb noise tokens (to filter from query anchors)
+# ============================================================================
+verb_noise_tokens:
+  - "indicate"
+  - "indicates"
+  - "indicating"
+  - "mean"
+  - "means"
+  - "meaning"
+  - "cause"
+  - "causes"
+  - "causing"
+  - "treat"
+  - "treats"
+  - "treating"
+  - "help"
+  - "helps"
+  - "helping"
+  - "do"
+  - "does"
+  - "doing"
+  - "affect"
+  - "affects"
+  - "affecting"
+  - "suggest"
+  - "suggests"
+  - "suggesting"
+  - "show"
+  - "shows"
+  - "showing"
+
+# ============================================================================
+# Anchor synonyms (normalization for query terms)
+# ============================================================================
+anchor_synonyms:
+  il6: "il-6"
+  "hb a1c": "hba1c"
+  hba1c: "hba1c"
+  "a1c": "hba1c"
+  "r.a.": "ra"
+  ra: "ra"
+  tnf: "tnf-alpha"
+  "tnf alpha": "tnf-alpha"
+  esr: "esr"
+  "sed rate": "esr"
+
+# ============================================================================
+# General synonyms (for medical terms)
+# ============================================================================
+synonyms:
+  "rheumatoid arthritis": "ra"
+  "c-reactive protein": "crp"
+  "hemoglobin a1c": "hba1c"
+  "interleukin-6": "il-6"
+  "tumor necrosis factor": "tnf"
+  "white blood cell": "wbc"
+  "low density lipoprotein": "ldl"
+  "high density lipoprotein": "hdl"
+
+# ============================================================================
+# Topic Consistency Settings
+# ============================================================================
+topic_cov_threshold: 0.30
+min_avg_cov: 0.15
+min_good_chunks: 3
+good_chunk_threshold: 0.20
+
+# ============================================================================
+# Overlap Veto Settings
+# ============================================================================
+veto_min_hits: 1
+veto_min_coverage: 0.25
+veto_min_anchor_count: 3
+
+# ============================================================================
+# Mechanism Gate Settings
+# ============================================================================
+min_mech_snippets: 1
+
+# ============================================================================
+# Evidence Gate Settings
+# ============================================================================
+min_distinct_pmids: 1
+min_kw_overlap: 0.15
+require_hybrid_hit: true
+min_top_score: 0.0
+
+# ============================================================================
+# Composition Settings
+# ============================================================================
+max_snippets: 8
+min_snippet_length: 50
+max_snippet_length: 500
+include_metadata: true
+
+# ============================================================================
+# Citation Verification Settings
+# ============================================================================
+require_pmid: true
+require_text: true
+min_citations: 1
+
+# ============================================================================
+# Query Specificity Settings
+# ============================================================================
+specificity_min_score: 3

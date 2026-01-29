@@ -1,0 +1,90 @@
+# WiseWell Medical RAG Backend - Production Requirements
+# Python 3.9+ required
+
+# ============================================================================
+# Core Framework & API
+# ============================================================================
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-multipart
+
+# ============================================================================
+# Data Processing & Utilities
+# ============================================================================
+pandas
+pyarrow
+numpy
+tqdm
+
+# ============================================================================
+# XML/HTML Parsing (for PubMed data)
+# ============================================================================
+lxml
+beautifulsoup4
+orjson
+
+# ============================================================================
+# Configuration
+# ============================================================================
+pyyaml
+
+# ============================================================================
+# Machine Learning & Retrieval
+# ============================================================================
+# FAISS for vector similarity search
+faiss-cpu
+
+# Sentence transformers for embeddings
+sentence-transformers
+torch  # Required by sentence-transformers
+transformers  # Required by sentence-transformers
+
+# BM25 for sparse retrieval
+rank-bm25
+
+# ============================================================================
+# Orchestration (LangGraph)
+# ============================================================================
+langchain
+langchain-core
+langchain-community
+langgraph
+langsmith
+# ============================================================================
+# Logging & Monitoring
+# ============================================================================
+structlog
+python-json-logger
+
+# ============================================================================
+# HTTP Client
+# ============================================================================
+httpx
+
+# ============================================================================
+# Optional: Caching & Metrics (uncomment if needed)
+# ============================================================================
+# redis
+# hiredis  # C parser for Redis, faster
+# prometheus-client
+# prometheus-fastapi-instrumentator
+
+# ============================================================================
+# Development & Testing (can be moved to requirements-dev.txt)
+# ============================================================================
+pytest
+pytest-asyncio
+pytest-cov
+
+# ============================================================================
+# Type Checking & Code Quality (development only)
+# ============================================================================
+# mypy
+# black
+# ruff
+
+requests
+openai
+python-dotenv
