@@ -1,4 +1,4 @@
-# 🏥 WiseWell Medical Chatbot
+# 🏥 WiseWell Medical Chatbot - Lite
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![React](https://img.shields.io/badge/react-18+-61dafb.svg)](https://reactjs.org/)
