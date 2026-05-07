@@ -1,3 +1,9 @@
+[![Live Demo](https://img.shields.io/badge/AWS%20EC2-Live%20Demo-orange)](http://13.134.107.196:8090/wiswell)
+
+> **Try it live** → [http://13.134.107.196:8090/wiswell](http://13.134.107.196:8090/wiswell)
+
+---
+
 # 🏥 WiseWell Medical Chatbot - Lite
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -80,7 +86,7 @@ python backend/main.py
 cd frontend && npm run dev
 ```
 
-**Production (EC2):** `http://13.134.107.196:8502`  
+**Production (EC2):** `http://13.134.107.196:8504`  
 **Local dev:** `http://localhost:5173`
 
 ---
@@ -185,7 +191,7 @@ Wise_Well_Chatbot_Lite/
 │   ├── eval_quick_test.py
 │   └── build_hybrid_indexes.py
 ├── frontend/
-│   ├── .env                         ← VITE_API_URL=http://13.134.107.196:8502
+│   ├── .env                         ← VITE_API_URL=http://13.134.107.196:8504
 │   └── src/
 │       ├── App.tsx                  ← health check → EC2 :8502/health
 │       ├── components/
@@ -204,7 +210,7 @@ Wise_Well_Chatbot_Lite/
 AWS_DEFAULT_REGION=eu-west-1
 
 # Knowledge base
-WISEWELL_INDEXES_ROOT=/home/ubuntu/Wise_Well_Chatbot_Lite/kb/indexes
+WISEWELL_INDEXES_ROOT=/home/ubuntu/projects/wisewell/kb/indexes
 WISEWELL_YEARS=2023,2024
 
 # API server
@@ -219,7 +225,7 @@ DEBUG=false
 
 ### Frontend (`frontend/.env`)
 ```env
-VITE_API_URL=http://13.134.107.196:8502
+VITE_API_URL=http://13.134.107.196:8504
 ```
 
 ---
