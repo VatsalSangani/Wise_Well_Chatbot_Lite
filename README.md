@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Accuracy](https://img.shields.io/badge/accuracy-87.5%25-brightgreen.svg)]()
 
-> An advanced medical information retrieval system combining hybrid search (BM25 + FAISS) with GPT-4o-mini synthesis, featuring comprehensive safety guardrails and natural language responses.
+> An advanced medical information retrieval system combining hybrid search (BM25 + FAISS) with AWS Bedrock Claude Sonnet synthesis, featuring comprehensive safety guardrails and natural language responses.
 
 ---
 
@@ -15,7 +15,7 @@
 - **87.5% Accuracy** on medical Q&A evaluation
 - **8-Stage Safety Guardrails** with LangGraph orchestration
 - **Hybrid Retrieval** - BM25 sparse + FAISS dense search
-- **GPT-4o-mini Synthesis** for natural language responses
+- **AWS Bedrock Claude Sonnet** for natural language synthesis (IAM role auth)
 - **Full Citations** - Every claim backed by PubMed IDs
 
 ### 🛡️ **Safety First**
@@ -42,7 +42,7 @@ User Query
     ↓
 Decision: ANSWER / ABSTAIN / REFUSE
     ↓
-GPT-4o-mini Synthesis (if ANSWER)
+AWS Bedrock Claude Sonnet Synthesis (if ANSWER)
     ↓
 Natural Language Response + Citations
 ```
@@ -54,8 +54,8 @@ Natural Language Response + Citations
 ### Prerequisites
 - Python 3.9+
 - Node.js 18+
-- OpenAI API key
-- Knowledge base (FAISS indexes)
+- AWS IAM role with `bedrock:InvokeModel` permission (no API key required)
+- Knowledge base indexes at `WISEWELL_INDEXES_ROOT`
 
 ### Installation
 
@@ -68,35 +68,36 @@ cd Wise_Well_Chatbot_Lite
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env  # Add your API keys
 
-# 3. Frontend setup
-cd frontend
-npm install
-echo "VITE_API_URL=http://localhost:8000" > .env
+# 3. Frontend setup  (frontend/.env already set to EC2 URL)
+cd frontend && npm install
 
 # 4. Run application
-# Terminal 1:
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+# Terminal 1 — backend (port 8502):
+python backend/main.py
 
-# Terminal 2:
+# Terminal 2 — frontend dev server:
 cd frontend && npm run dev
 ```
 
-**Access:** http://localhost:5173
+**Production (EC2):** `http://13.134.107.196:8502`  
+**Local dev:** `http://localhost:5173`
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Run test suite (11 tests)
+# Run test suite
 python test_backend.py
 
-# Test API
-curl -X POST http://localhost:8000/query \
+# Test API (local)
+curl -X POST http://localhost:8502/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What is CRP?"}'
+
+# Health check
+curl http://localhost:8502/health
 ```
 
 ---
@@ -144,39 +145,81 @@ Please consult with a qualified healthcare professional.
 
 ```
 Wise_Well_Chatbot_Lite/
-├── backend/              # FastAPI backend
-│   ├── main.py          # API endpoints
-│   ├── schemas.py       # Pydantic models
-│   └── deps.py          # Dependencies
-├── frontend/            # React frontend
-│   └── src/
-│       ├── components/  # UI components
-│       └── services/    # API integration
-├── guardrails/          # 8-stage safety pipeline
-├── orchestration/       # LangGraph workflow
-│   ├── service.py      # Main orchestration
-│   └── llm_synthesis.py # GPT-4o-mini integration
+├── config.py                        ← all constants (port, model IDs, paths, defaults)
+├── requirements.txt                 ← CPU-only torch, boto3, no openai
+├── test_backend.py
+├── backend/
+│   ├── main.py                      ← slim entry point (≤50 lines, port 8502)
+│   ├── schemas.py                   ← Pydantic request/response models
+│   ├── deps.py                      ← HybridRetriever singleton (lru_cache)
+│   └── routes/
+│       ├── health.py                ← GET /, /health, /health/ready, /health/live
+│       ├── query.py                 ← POST /query (guardrails + Bedrock synthesis)
+│       └── admin.py                 ← GET /admin/config, /admin/stats
+├── retrieval/
+│   ├── __init__.py
+│   └── hybrid_retriever.py          ← BM25 + FAISS with RRF fusion (single copy)
+├── orchestration/
+│   ├── service.py                   ← run_wisewell_query() wrapper
+│   ├── llm_syntheses.py             ← AWS Bedrock Claude Sonnet (IAM role auth)
+│   ├── graph.py                     ← LangGraph StateGraph definition
+│   ├── state.py                     ← QAState dataclass
+│   ├── nodes.py                     ← LangGraph node implementations
+│   ├── bootstrap.py                 ← sys.path initialisation
+│   └── utils.py                     ← timing decorators
+├── guardrails/                      ← 8-stage safety pipeline
+│   ├── input_validation.py
+│   ├── safety_intent.py
+│   ├── query_specificity.py
+│   ├── topic_consistency.py
+│   ├── evidence_gate.py
+│   ├── composer_extractive.py
+│   ├── citation_verifier.py
+│   ├── config_loader.py
+│   └── validate_config.py
 ├── config/
-│   └── guardrails.yaml  # Configuration
-├── requirements.txt
-└── test_backend.py
+│   └── guardrails.yaml              ← safety thresholds and retrieval config
+├── scripts/                         ← data ingestion and evaluation utilities
+│   ├── qa_check.py
+│   ├── eval_runner.py
+│   ├── eval_quick_test.py
+│   └── build_hybrid_indexes.py
+├── frontend/
+│   ├── .env                         ← VITE_API_URL=http://13.134.107.196:8502
+│   └── src/
+│       ├── App.tsx                  ← health check → EC2 :8502/health
+│       ├── components/
+│       └── services/api.ts
+└── kb/indexes/                      ← FAISS + BM25 indexes (not committed)
+    └── year=2023/ year=2024/
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-### Backend (.env)
+### Backend environment variables
 ```env
-OPENAI_API_KEY=sk-your-key
-ENABLE_LLM_SYNTHESIS=true
-WISEWELL_INDEXES_ROOT=kb/indexes
+# AWS — credentials come from the EC2 IAM role (no key needed)
+AWS_DEFAULT_REGION=eu-west-1
+
+# Knowledge base
+WISEWELL_INDEXES_ROOT=/home/ubuntu/Wise_Well_Chatbot_Lite/kb/indexes
 WISEWELL_YEARS=2023,2024
+
+# API server
+WISEWELL_PORT=8502
+WISEWELL_HOST=0.0.0.0
+
+# Feature flags
+ENABLE_LLM_SYNTHESIS=true
+ENABLE_ADMIN_ENDPOINTS=false
+DEBUG=false
 ```
 
-### Frontend (.env)
+### Frontend (`frontend/.env`)
 ```env
-VITE_API_URL=http://localhost:8000
+VITE_API_URL=http://13.134.107.196:8502
 ```
 
 ---
@@ -202,10 +245,11 @@ VITE_API_URL=http://localhost:8000
 
 ## 🛠️ Tech Stack
 
-**Backend:** Python, FastAPI, LangGraph, FAISS, sentence-transformers  
-**Frontend:** React, TypeScript, Vite, Tailwind CSS  
-**LLM:** OpenAI GPT-4o-mini  
-**Knowledge:** PubMed (2023-2024)
+**Backend:** Python 3.9+, FastAPI, LangGraph, FAISS (CPU), sentence-transformers  
+**Frontend:** React 18+, TypeScript, Vite, Tailwind CSS  
+**LLM:** AWS Bedrock — `eu.anthropic.claude-3-sonnet-20240229-v1:0` (IAM role auth)  
+**Deployment:** AWS EC2 · port 8502  
+**Knowledge base:** PubMed 2023–2024 (hybrid BM25 + FAISS indexes)
 
 ---
 
@@ -238,7 +282,7 @@ MIT License - see [LICENSE](LICENSE) file
 - Medical literature from PubMed
 - Embeddings from sentence-transformers
 - Vector search by FAISS
-- LLM synthesis by OpenAI GPT-4o-mini
+- LLM synthesis by AWS Bedrock Claude Sonnet
 - Orchestration by LangGraph
 
 ---

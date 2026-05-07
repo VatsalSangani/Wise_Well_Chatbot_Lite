@@ -15,7 +15,7 @@ if str(_repo_root) not in sys.path:
 import re
 from typing import Any, Dict, List, Tuple
 
-from hybrid_retriever import HybridRetriever
+from retrieval.hybrid_retriever import HybridRetriever
 from latency_profile import LatencyTimer, PipelineProfiler
 
 from guardrails.validate_config import validate as validate_guardrails_config

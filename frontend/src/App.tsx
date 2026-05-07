@@ -25,13 +25,7 @@ function App() {
   useEffect(() => {
     if (hasConsented) {
       setIsInitializing(true);
-      fetch('https://brendvat-wise-well-chatbot-lite.hf.space/ask', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question: 'test' }),
-      })
+      fetch('http://13.134.107.196:8502/health')
         .then(() => {
           setIsInitializing(false);
         })

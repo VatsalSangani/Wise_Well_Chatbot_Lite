@@ -11,7 +11,7 @@ from functools import lru_cache
 from typing import Optional
 import structlog
 
-import hybrid_retriever
+from retrieval import hybrid_retriever
 
 logger = structlog.get_logger()
 
@@ -36,19 +36,9 @@ def get_retriever() -> hybrid_retriever.HybridRetriever:
         ValueError: If indexes are malformed
     """
     # Get configuration from environment
-    indexes_root_env = os.getenv("WISEWELL_INDEXES_ROOT")
-    years_env = os.getenv("WISEWELL_YEARS", "2023,2024")
-    
-    # Determine indexes path
-    if indexes_root_env:
-        indexes_path = Path(indexes_root_env)
-    else:
-        # Default: relative to repo root
-        repo_root = Path(__file__).parent.parent
-        indexes_path = repo_root / "kb" / "indexes"
-    
-    # Parse years
-    years = [y.strip() for y in years_env.split(",") if y.strip()]
+    from config import INDEXES_ROOT, WISEWELL_YEARS
+    indexes_path = Path(INDEXES_ROOT)
+    years = WISEWELL_YEARS
     
     logger.info(
         "initializing_retriever",

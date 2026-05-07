@@ -1,90 +1,59 @@
-# WiseWell Medical RAG Backend - Production Requirements
-# Python 3.9+ required
+# WiseWell Medical RAG Backend
+# Python 3.9+  |  CPU-only deployment (AWS EC2)
 
-# ============================================================================
-# Core Framework & API
-# ============================================================================
+# ── Core framework ─────────────────────────────────────────────
 fastapi
 uvicorn[standard]
 pydantic
 pydantic-settings
 python-multipart
+python-dotenv
 
-# ============================================================================
-# Data Processing & Utilities
-# ============================================================================
+# ── Data processing ────────────────────────────────────────────
 pandas
 pyarrow
 numpy
 tqdm
-
-# ============================================================================
-# XML/HTML Parsing (for PubMed data)
-# ============================================================================
-lxml
-beautifulsoup4
 orjson
 
-# ============================================================================
-# Configuration
-# ============================================================================
+# ── XML / HTML parsing (PubMed ingestion) ─────────────────────
+lxml
+beautifulsoup4
+
+# ── Configuration ──────────────────────────────────────────────
 pyyaml
 
-# ============================================================================
-# Machine Learning & Retrieval
-# ============================================================================
-# FAISS for vector similarity search
+# ── ML & Retrieval ─────────────────────────────────────────────
 faiss-cpu
 
-# Sentence transformers for embeddings
+# CPU-only PyTorch (must come before transformers / sentence-transformers)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+transformers
 sentence-transformers
-torch  # Required by sentence-transformers
-transformers  # Required by sentence-transformers
 
-# BM25 for sparse retrieval
+# BM25 sparse retrieval
 rank-bm25
 
-# ============================================================================
-# Orchestration (LangGraph)
-# ============================================================================
+# ── LangGraph orchestration ────────────────────────────────────
 langchain
 langchain-core
 langchain-community
 langgraph
 langsmith
-# ============================================================================
-# Logging & Monitoring
-# ============================================================================
+
+# ── AWS Bedrock (LLM synthesis — IAM role auth, no API key) ───
+boto3
+
+# ── Logging & monitoring ───────────────────────────────────────
 structlog
 python-json-logger
 
-# ============================================================================
-# HTTP Client
-# ============================================================================
+# ── HTTP client ────────────────────────────────────────────────
 httpx
+requests
 
-# ============================================================================
-# Optional: Caching & Metrics (uncomment if needed)
-# ============================================================================
-# redis
-# hiredis  # C parser for Redis, faster
-# prometheus-client
-# prometheus-fastapi-instrumentator
-
-# ============================================================================
-# Development & Testing (can be moved to requirements-dev.txt)
-# ============================================================================
+# ── Testing ────────────────────────────────────────────────────
 pytest
 pytest-asyncio
 pytest-cov
-
-# ============================================================================
-# Type Checking & Code Quality (development only)
-# ============================================================================
-# mypy
-# black
-# ruff
-
-requests
-openai
-python-dotenv
