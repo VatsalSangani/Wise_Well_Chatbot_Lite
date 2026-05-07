@@ -1,9 +1,3 @@
-[![Live Demo](https://img.shields.io/badge/AWS%20EC2-Live%20Demo-orange)](http://13.134.107.196:8090/wiswell)
-
-> **Try it live** → [http://13.134.107.196:8090/wiswell](http://13.134.107.196:8090/wiswell)
-
----
-
 # 🏥 WiseWell Medical Chatbot - Lite
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -12,6 +6,12 @@
 [![Accuracy](https://img.shields.io/badge/accuracy-87.5%25-brightgreen.svg)]()
 
 > An advanced medical information retrieval system combining hybrid search (BM25 + FAISS) with AWS Bedrock Claude Sonnet synthesis, featuring comprehensive safety guardrails and natural language responses.
+
+---
+[![Live Demo](https://img.shields.io/badge/AWS%20EC2-Live%20Demo-orange)](http://13.134.107.196:8090/wiswell)
+
+> **Try it live** → [http://13.134.107.196:8090/wiswell](http://13.134.107.196:8090/wiswell)
+![Demo UI using React](https://github.com/VatsalSangani/Wise_Well_Chatbot_Lite/blob/main/WiseWell%20Screenshot.png)
 
 ---
 
