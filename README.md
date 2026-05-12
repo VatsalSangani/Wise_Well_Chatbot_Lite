@@ -8,9 +8,9 @@
 > An advanced medical information retrieval system combining hybrid search (BM25 + FAISS) with AWS Bedrock Claude Sonnet synthesis, featuring comprehensive safety guardrails and natural language responses.
 
 ---
-[![Live Demo](https://img.shields.io/badge/AWS%20EC2-Live%20Demo-orange)](http://13.134.107.196:8090/wiswell)
+[![Live Demo](https://img.shields.io/badge/AWS%20EC2-Live%20Demo-orange)](https://46kclo66ry2ptmxgwckb6ben4a0mdfsq.lambda-url.eu-west-2.on.aws/?p=wiswell)
 
-> **Try it live** → [http://13.134.107.196:8090/wiswell](http://13.134.107.196:8090/wiswell)
+> **Try it live** → [Click here ](https://46kclo66ry2ptmxgwckb6ben4a0mdfsq.lambda-url.eu-west-2.on.aws/?p=wiswell)
 ![Demo UI using React](https://github.com/VatsalSangani/Wise_Well_Chatbot_Lite/blob/main/WiseWell%20Screenshot.png)
 
 ---
