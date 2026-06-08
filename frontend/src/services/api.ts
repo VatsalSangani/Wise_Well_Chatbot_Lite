@@ -2,7 +2,7 @@
 // Updated API service for WiseWell Backend Integration
 
 // Backend API configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://13.134.107.196:8502';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://portfolio.vatsalsangani.in/wiswell-ui/api';
 
 // Response types matching your backend
 export interface BackendResponse {

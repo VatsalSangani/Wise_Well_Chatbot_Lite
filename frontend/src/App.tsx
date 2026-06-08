@@ -9,7 +9,6 @@ function App() {
     const storedConsent = sessionStorage.getItem('wiseWellConsent');
     return storedConsent === 'true';
   });
-
   const [isInitializing, setIsInitializing] = useState(false);
 
   const handleAcceptConsent = () => {
@@ -25,14 +24,24 @@ function App() {
   useEffect(() => {
     if (hasConsented) {
       setIsInitializing(true);
-      fetch('http://13.134.107.196:8502/health')
-        .then(() => {
-          setIsInitializing(false);
-        })
-        .catch((error) => {
-          console.error('Backend initialization error:', error);
-          setIsInitializing(false);
-        });
+
+      const pollHealth = async () => {
+        try {
+          const res = await fetch('https://portfolio.vatsalsangani.in/wiswell-ui/api/health');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'healthy') {
+              setIsInitializing(false);
+              return;
+            }
+          }
+        } catch (e) {
+          // not ready yet
+        }
+        setTimeout(pollHealth, 3000);
+      };
+
+      pollHealth();
     }
   }, [hasConsented]);
 
@@ -41,9 +50,9 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300">
         <div className="h-screen flex flex-col overflow-hidden">
           {!hasConsented && (
-            <ConsentModal 
-              onAccept={handleAcceptConsent} 
-              onReject={handleRejectConsent} 
+            <ConsentModal
+              onAccept={handleAcceptConsent}
+              onReject={handleRejectConsent}
             />
           )}
           {hasConsented && isInitializing && <LoadingScreen />}

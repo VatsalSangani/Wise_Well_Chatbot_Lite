@@ -30,7 +30,7 @@ MAX_QUERY_LENGTH: int  = int(os.getenv("MAX_QUERY_LENGTH", "500"))
 EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
 
 # ── AWS Bedrock (Claude Sonnet) ────────────────────────────────
-BEDROCK_MODEL_ID: str = "eu.anthropic.claude-3-sonnet-20240229-v1:0"
+BEDROCK_MODEL_ID: str = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 BEDROCK_REGION: str   = os.getenv("AWS_DEFAULT_REGION", "eu-west-1")
 
 # ── LLM synthesis settings ─────────────────────────────────────

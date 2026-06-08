@@ -31,7 +31,7 @@ const ChatInterface: React.FC = () => {
       if (!healthy) {
         const errorMessage: Message = {
           id: 'health-error',
-          text: "⚠️ Unable to connect to the medical information service. Please check that the backend is running at http://localhost:8000",
+          text: "⚠️ Unable to connect to the medical information service. Please check that the backend is running at https://portfolio.vatsalsangani.in/wiswell-ui/api",
           sender: 'bot',
           timestamp: new Date(),
           decision: 'ABSTAIN'
@@ -89,7 +89,7 @@ const ChatInterface: React.FC = () => {
         if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
           errorText = "⚠️ Cannot connect to the backend service. Please ensure:\n\n" +
                      "• The backend is running (uvicorn backend.main:app --reload)\n" +
-                     "• Backend is accessible at http://localhost:8000\n" +
+                     "• Backend is accessible at https://portfolio.vatsalsangani.in/wiswell-ui/api\n" +
                      "• No firewall is blocking the connection";
         } else if (error.message.includes('400')) {
           errorText = "Your question couldn't be processed. Please try rephrasing it.";
