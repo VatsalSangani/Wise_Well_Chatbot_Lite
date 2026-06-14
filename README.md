@@ -36,22 +36,82 @@
 ```
 User Query
     ↓
-8-Stage Guardrail Pipeline (LangGraph)
-    ├─ Safety Intent → Block harmful
-    ├─ Query Specificity → Clear questions
-    ├─ Topic Consistency → Filter off-topic
-    ├─ Hybrid Retrieval → BM25 + FAISS
-    ├─ Overlap Veto → Diverse sources
-    ├─ Mechanism Gate → Evidence quality
-    ├─ Evidence Gate → Sufficient support
-    └─ Citation Check → Validate PMIDs
+Red-Flag Detector ──(active emergency)──▶ Tier 2 Escalation (999 / Samaritans)
+    ↓ (no emergency)
+Front-Door Router
+    ├─ Greeting / chitchat / meta ──▶ friendly reply (skips retrieval + gates)
+    └─ Medical question
+         ↓
+       Safety Intent → refuse individual Dx / Rx / dosing
+         ↓
+       Specificity → answer-likely + offer to narrow (clarify only if referent-less)
+         ↓
+       Dense Retrieval (Pinecone) + lab-value / concept query-rewrite
+         ↓
+       SQLite text rehydration (chunk_id → abstract text)
+         ↓
+       Quality gates: Topic Consistency · Overlap Veto · Mechanism · Evidence
+         ↓
+       Evidence-Confidence Fork (top score ≥ 0.58 AND ≥ 3 distinct PMIDs)
+         ├─ confident  ──▶ RAG mode  → cited answer + code-inserted source block
+         └─ weak       ──▶ general mode → answer + code-inserted disclaimer
+         ↓
+       50/50 personal handling → code-inserted "see a doctor" defer (Tier 1)
     ↓
-Decision: ANSWER / ABSTAIN / REFUSE
+Decision: ANSWER · ABSTAIN · REFUSE · ESCALATE · CHITCHAT · CLARIFY
     ↓
-AWS Bedrock Claude Sonnet Synthesis (if ANSWER)
+AWS Bedrock Claude Haiku synthesis (RAG / general modes)
     ↓
-Natural Language Response + Citations
+Natural-language response · code-inserted citations / disclaimers / defers
+
+Stateless · single-turn · horizontally scalable (see "Stateless design / scaling")
+Trust signals (citations, disclaimers, defers, escalations) are inserted by CODE,
+never left to the LLM.
 ```
+
+---
+
+## 🧩 Stateless design / scaling
+
+WiseWell is a **single-turn, stateless API by deliberate design** — every `/query`
+request is fully independent, and the server keeps **no per-user or per-request
+state** between calls. This is what lets it scale horizontally: any instance can
+serve any request, and you can add or remove instances behind a load balancer
+with no session affinity or shared mutable state to coordinate.
+
+**What lives in memory is shared and read-only**, loaded once per process and
+identical across instances:
+
+| Resource | Nature |
+|---|---|
+| Pinecone retriever client | shared, read-only (network client) |
+| Embedding model (MiniLM, lazy-loaded) | shared, read-only |
+| SQLite text store | read-only reference data, replicated per instance |
+| Guardrails config | loaded once, read-only |
+
+None of these are per-user state — they are the equivalent of static assets, just
+held in RAM. (The SQLite file and the embedding model are replicated on each
+instance, exactly like the index data; they are not a shared coordination point.)
+
+**Conversation memory is intentionally deferred to v2.** The API has no `history`
+field and no in-process conversation store. This is a considered tradeoff, not an
+oversight:
+
+- *Why deferred:* multi-turn memory would require the safety guardrails (red-flag
+  escalation, `safety_intent` refusal, the 50/50 personal handling) to evaluate
+  **assembled conversation history** rather than a single message. An emergency or
+  a personal-advice request could be split across turns, so each safety check
+  would have to reason over the whole thread — a meaningful increase in safety
+  surface area that we chose not to take on in v1.
+- *How it will be added:* an **external session store (Redis keyed by session id)**,
+  not in-process state — preserving the stateless, horizontally-scalable property.
+  The request would carry a `session_id`; history is fetched/written in Redis, and
+  the safety layer is extended to evaluate over the assembled turns.
+
+The single-turn contract is enforced at the edge: `QueryRequest` accepts only
+`query` + `debug` (see `backend/schemas.py`). Audit logging is kept off the live
+request path for the same reason — see `orchestration/audit_logger.py` (CLI-only;
+a multi-instance deployment would log to stdout / an external sink, never local disk).
 
 ---
 

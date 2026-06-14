@@ -31,8 +31,7 @@ async def get_config():
 async def get_stats():
     r = get_retriever()
     return {
-        "indexes_root": str(r.root),
-        "years": r.years,
-        "bm25_indexes": list(r.bm25.keys()),
-        "faiss_indexes": list(r.faiss_index.keys()),
+        "backend": "pinecone",
+        "index": r.index_name,
+        "years": WISEWELL_YEARS,
     }

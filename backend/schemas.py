@@ -10,8 +10,16 @@ from typing import Optional, List, Dict, Any
 
 
 class QueryRequest(BaseModel):
-    """Request schema for /query endpoint."""
-    
+    """Request schema for /query endpoint.
+
+    SINGLE-TURN BY DESIGN: each /query is fully independent and stateless. There
+    is intentionally no `history` / `session` field — do NOT add an in-process
+    conversation store. Multi-turn memory is a deferred v2 feature and will use
+    an external session store (Redis keyed by session id), not server-side state.
+    See README "Stateless design / scaling" for the reasoning (safety guardrails
+    evaluate single messages, not assembled history).
+    """
+
     query: str = Field(
         ...,
         description="Medical information query",
@@ -83,8 +91,16 @@ class QueryResponse(BaseModel):
     trace_id: str = Field(..., description="Unique trace ID for request tracking")
     decision: str = Field(
         ...,
-        description="Pipeline decision: ANSWER, ABSTAIN, or REFUSE",
-        pattern="^(ANSWER|ABSTAIN|REFUSE)$"  # Changed from 'regex' to 'pattern'
+        description="Pipeline decision",
+        pattern="^(ANSWER|ABSTAIN|REFUSE|ESCALATE|CHITCHAT|CLARIFY)$"
+    )
+    mode: Optional[str] = Field(
+        None,
+        description="Answer mode: rag|general|escalate|chitchat|refuse|clarify|abstain"
+    )
+    is_personal: Optional[bool] = Field(
+        None,
+        description="Whether the query described the user's own situation (50/50 handling)"
     )
     reason: Optional[str] = Field(
         None,

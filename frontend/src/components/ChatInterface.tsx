@@ -62,19 +62,23 @@ const ChatInterface: React.FC = () => {
     try {
       // Call backend API
       const response = await sendMessage(text);
-      
-      // Create bot message with decision and citations
+
+      // Create bot message with decision, citations, and code-inserted fields
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response.answer,
         sender: 'bot',
         timestamp: new Date(),
         decision: response.decision,
+        reason: response.reason,
+        mode: response.mode,
+        is_personal: response.is_personal,
+        code: response.code,
         citations: response.citations
       };
-      
+
       setMessages(prev => [...prev, botMessage]);
-      
+
       // Update backend health status
       if (backendHealthy === false) {
         setBackendHealthy(true);

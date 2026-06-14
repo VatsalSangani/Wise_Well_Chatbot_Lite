@@ -27,7 +27,8 @@ function App() {
 
       const pollHealth = async () => {
         try {
-          const res = await fetch('https://portfolio.vatsalsangani.in/wiswell-ui/api/health');
+          const apiBase = import.meta.env.VITE_API_URL || 'https://portfolio.vatsalsangani.in/wiswell-ui/api';
+          const res = await fetch(`${apiBase}/health`);
           if (res.ok) {
             const data = await res.json();
             if (data.status === 'healthy') {

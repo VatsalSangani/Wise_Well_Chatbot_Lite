@@ -7,10 +7,19 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://portfolio.vatsalsa
 // Response types matching your backend
 export interface BackendResponse {
   trace_id: string;
-  decision: 'ANSWER' | 'ABSTAIN' | 'REFUSE';
+  decision: 'ANSWER' | 'ABSTAIN' | 'REFUSE' | 'ESCALATE' | 'CHITCHAT' | 'CLARIFY';
+  mode?: string; // 'rag' | 'general' | 'escalate' | 'chitchat' | 'refuse' | 'clarify' | 'abstain'
   reason: string | null;
   answer: string | null;
   snippets: EvidenceSnippet[];
+  code?: {
+    disclaimer?: string;
+    soft_defer?: string;
+    source_block?: string;
+    offer?: string;
+    escalation?: string;
+  };
+  is_personal?: boolean;
   timings_ms?: Record<string, number>;
   signals?: Record<string, any>;
 }
@@ -33,8 +42,17 @@ export interface EvidenceSnippet {
 export interface ApiResponse {
   answer: string;
   context: string;
-  decision: 'ANSWER' | 'ABSTAIN' | 'REFUSE';
+  decision: 'ANSWER' | 'ABSTAIN' | 'REFUSE' | 'ESCALATE' | 'CHITCHAT' | 'CLARIFY';
   reason?: string;
+  mode?: string;
+  is_personal?: boolean;
+  code?: {
+    disclaimer?: string;
+    soft_defer?: string;
+    source_block?: string;
+    offer?: string;
+    escalation?: string;
+  };
   citations?: EvidenceSnippet[];
 }
 
@@ -72,33 +90,63 @@ export const sendMessage = async (message: string): Promise<ApiResponse> => {
  * Transform backend response to frontend format
  */
 function transformResponse(data: BackendResponse): ApiResponse {
-  const { decision, reason, answer, snippets } = data;
-  
+  const { decision, reason, answer, snippets, mode, code, is_personal } = data;
+
   switch (decision) {
     case 'ANSWER':
       return {
         answer: answer || 'I found some information for you.',
         context: generateContextFromSnippets(snippets),
         decision: 'ANSWER',
+        mode: mode,
+        is_personal: is_personal,
+        code: code,
         citations: snippets
       };
-      
+
+    case 'ESCALATE':
+      return {
+        answer: answer || 'Emergency response required.',
+        context: '',
+        decision: 'ESCALATE',
+        reason: reason || undefined,
+        code: code
+      };
+
+    case 'CHITCHAT':
+      return {
+        answer: answer || 'I appreciate the message!',
+        context: '',
+        decision: 'CHITCHAT',
+        code: code
+      };
+
+    case 'CLARIFY':
+      return {
+        answer: answer || 'Could you provide more details?',
+        context: '',
+        decision: 'CLARIFY',
+        code: code
+      };
+
+    case 'REFUSE':
+      return {
+        answer: answer || getRefuseMessage(reason),
+        context: '',
+        decision: 'REFUSE',
+        reason: reason || undefined,
+        code: code
+      };
+
     case 'ABSTAIN':
       return {
         answer: getAbstainMessage(reason),
         context: '',
         decision: 'ABSTAIN',
-        reason: reason || undefined
+        reason: reason || undefined,
+        code: code
       };
-      
-    case 'REFUSE':
-      return {
-        answer: getRefuseMessage(reason),
-        context: '',
-        decision: 'REFUSE',
-        reason: reason || undefined
-      };
-      
+
     default:
       return {
         answer: 'I encountered an unexpected response. Please try again.',

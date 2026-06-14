@@ -14,6 +14,15 @@ def _utc_now_iso() -> str:
 
 def write_audit_jsonl(state: QAState, out_path: str = "audit_logs/wise_well_audit.jsonl",
                      extra: Optional[Dict[str, Any]] = None) -> str:
+    """Append one audit record to a local JSONL file.
+
+    CLI-ONLY: this is invoked from orchestration/run.py, NOT the live /query API
+    path. The local-file append is fine for a single-process CLI run, but it is
+    deliberately kept off the request path — under horizontal scaling each
+    instance would write to its own local disk, fragmenting the audit trail. If
+    audit logging is ever needed on the live API, write to stdout (for a log
+    collector) or an external sink (object store / log service), not local disk.
+    """
     p = Path(out_path)
     p.parent.mkdir(parents=True, exist_ok=True)
 

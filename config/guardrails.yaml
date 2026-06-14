@@ -4,7 +4,10 @@
 # ============================================================================
 # Input Validation
 # ============================================================================
-min_query_chars: 10
+# min lowered from 10 -> 3: the front-door router now handles greetings, so
+# input_validation no longer needs to reject short input; short-but-medical
+# queries ("CRP?") should reach the clarify/general path, not be rejected.
+min_query_chars: 3
 max_query_chars: 500
 
 # ============================================================================
