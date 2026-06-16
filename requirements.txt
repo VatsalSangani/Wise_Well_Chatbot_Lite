@@ -63,3 +63,8 @@ pinecone
 
 # ── Anthropic ────────────────────────────────────────────────────
 anthropic
+
+# ── Observability & evaluation ───────────────────────────────────
+langfuse>=4,<5        # v4 SDK (March 2026 rewrite)
+openai                # GPT-4o-mini RAG-eval judge (off request path)
+textstat              # Flesch reading-ease (non-LLM readability metric)

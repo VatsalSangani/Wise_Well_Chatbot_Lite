@@ -57,17 +57,21 @@ export interface ApiResponse {
 }
 
 /**
- * Send a message to the WiseWell backend
+ * Send a message to the WiseWell backend (optionally with conversation history)
  */
-export const sendMessage = async (message: string): Promise<ApiResponse> => {
+export const sendMessage = async (
+  message: string,
+  history?: Array<{ role: 'user' | 'bot'; content: string }>
+): Promise<ApiResponse> => {
   try {
     const response = await fetch(`${API_BASE_URL}/query`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         query: message,
+        history: history || null,
         debug: false  // Set to true if you want timing/signal data
       }),
     });

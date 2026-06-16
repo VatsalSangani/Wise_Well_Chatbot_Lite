@@ -12,12 +12,13 @@ from typing import Optional, List, Dict, Any
 class QueryRequest(BaseModel):
     """Request schema for /query endpoint.
 
-    SINGLE-TURN BY DESIGN: each /query is fully independent and stateless. There
-    is intentionally no `history` / `session` field — do NOT add an in-process
-    conversation store. Multi-turn memory is a deferred v2 feature and will use
-    an external session store (Redis keyed by session id), not server-side state.
-    See README "Stateless design / scaling" for the reasoning (safety guardrails
-    evaluate single messages, not assembled history).
+    STATELESS DESIGN: each /query is fully independent. No server-side session
+    state. Multi-turn history (optional) is passed by the CLIENT and used ONLY
+    for query rewriting before the guardrails run. The rewrite produces a
+    self-contained standalone query that the guardrails evaluate as a single
+    message (preserving safety isolation).
+
+    See README "Stateless design / scaling" for the reasoning.
     """
 
     query: str = Field(
@@ -26,6 +27,19 @@ class QueryRequest(BaseModel):
         min_length=1,
         max_length=500,
         examples=["What is CRP and what does it indicate?"]
+    )
+    history: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Optional conversation history for follow-up resolution. "
+                    "List of {role: 'user'|'bot', content: str}. "
+                    "Used to rewrite follow-ups into standalone queries.",
+        examples=[
+            [
+                {"role": "user", "content": "What is the common cold?"},
+                {"role": "bot", "content": "The common cold is a viral infection..."},
+                {"role": "user", "content": "general overview"}
+            ]
+        ]
     )
     debug: bool = Field(
         default=False,

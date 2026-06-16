@@ -6,6 +6,13 @@ All constants, defaults and environment reads live here.
 import os
 from pathlib import Path
 
+# HuggingFace transformers backend: force torch, skip the TensorFlow/Flax import
+# probe. The retriever uses the torch backend; the TF probe additionally throws
+# noisy protobuf errors (tensorflow needs protobuf<5, but langfuse/OTEL pulls
+# protobuf>=6). setdefault so an explicit env choice is never overridden.
+os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("USE_FLAX", "0")
+
 # ── API server ─────────────────────────────────────────────────
 API_HOST: str = os.getenv("WISEWELL_HOST", "0.0.0.0")
 API_PORT: int = int(os.getenv("WISEWELL_PORT", "8502"))
@@ -40,9 +47,22 @@ PINECONE_INDEX_NAME: str = os.getenv("PINECONE_INDEX_NAME", "wisewell-abstracts"
 ANTHROPIC_MODEL_ID: str = "claude-haiku-4-5"
 
 # ── LLM synthesis settings ─────────────────────────────────────
-SYNTHESIS_MAX_TOKENS: int    = 500
+SYNTHESIS_MAX_TOKENS: int    = 2000
 SYNTHESIS_TEMPERATURE: float = 0.3
 SYNTHESIS_MIN_LENGTH: int    = 50
+
+# ── Multi-turn query resolution ────────────────────────────────
+# When a follow-up + history are present, rewrite into a standalone query.
+# History length is measured in exchanges (user+bot turns), then × 2 for actual turn count.
+DEFAULT_HISTORY_TURNS: int = 3  # last 3 exchanges = 6 turns to send to resolver
+
+# ── Observability & RAG evaluation (Langfuse + OpenAI judge) ───
+# Pure observation: tracing/eval NEVER change request behavior and NEVER block.
+# JUDGE_MODEL: independent grader (OpenAI) to avoid Claude self-grading bias.
+# EVAL_SAMPLE_RATE: fraction of ANSWER queries evaluated off the request path.
+# 1.0 for pre-deploy (see every score); lower for prod (judge call = cost/answer).
+JUDGE_MODEL: str         = os.getenv("JUDGE_MODEL", "gpt-4o-mini")
+EVAL_SAMPLE_RATE: float  = float(os.getenv("EVAL_SAMPLE_RATE", "1.0"))
 
 # ── Position B: RAG-vs-general evidence-confidence fork ─────────
 # Retrieval must clear BOTH bars to answer in cited RAG mode; otherwise the
