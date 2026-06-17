@@ -55,26 +55,40 @@ const ChatInterface: React.FC = () => {
       sender: 'user',
       timestamp: new Date()
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
-    
+
     try {
-      // Call backend API
-      const response = await sendMessage(text);
-      
-      // Create bot message with decision and citations
+      // Build conversation history for context resolution (last 3 exchanges = 6 turns)
+      // Filter out the initial bot greeting and system messages, keep only exchange pairs
+      const conversationHistory = messages
+        .filter(msg => msg.decision !== undefined || msg.sender === 'user') // skip initial greeting
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' as const : 'bot' as const,
+          content: msg.text
+        }))
+        .slice(-6); // last 6 turns (3 exchanges)
+
+      // Call backend API with optional history for context resolution
+      const response = await sendMessage(text, conversationHistory.length > 0 ? conversationHistory : undefined);
+
+      // Create bot message with decision, citations, and code-inserted fields
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response.answer,
         sender: 'bot',
         timestamp: new Date(),
         decision: response.decision,
+        reason: response.reason,
+        mode: response.mode,
+        is_personal: response.is_personal,
+        code: response.code,
         citations: response.citations
       };
-      
+
       setMessages(prev => [...prev, botMessage]);
-      
+
       // Update backend health status
       if (backendHealthy === false) {
         setBackendHealthy(true);
@@ -118,7 +132,7 @@ const ChatInterface: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
-          <img src="/Wise_Well_logo.png" alt="Wise Well" className="h-8 w-auto mr-2" />
+          <img src={`${import.meta.env.BASE_URL}Wise_Well_logo.png`} alt="Wise Well" className="h-8 w-auto mr-2" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Wise Well</h1>
             {backendHealthy !== null && (

@@ -15,7 +15,10 @@ if str(_repo_root) not in sys.path:
 import re
 from typing import Any, Dict, List, Tuple
 
-from retrieval.hybrid_retriever import HybridRetriever
+# NOTE: HybridRetriever (BM25+FAISS) is the rollback retriever. It is no longer
+# imported at module top — that pulled `import faiss` into FastAPI cold start.
+# answer_query() takes the retriever as a parameter (now PineconeRetriever in
+# production); the rollback CLI in __main__ imports HybridRetriever locally.
 from latency_profile import LatencyTimer, PipelineProfiler
 
 from guardrails.validate_config import validate as validate_guardrails_config
@@ -27,6 +30,11 @@ from guardrails.evidence_gate import evidence_gate
 from guardrails.composer_extractive import compose_extractive
 from guardrails.citation_verifier import verify_citations_extract_only
 from guardrails.mechanism_gate import mechanism_gate
+from guardrails.router import classify_lane
+from guardrails.red_flags import detect_red_flag
+from guardrails import responses
+
+from config import RAG_MIN_TOP_SCORE, RAG_MIN_DISTINCT_PMIDS
 
 
 
@@ -132,7 +140,7 @@ def _overlap_veto(
 
 def answer_query(
     query: str,
-    retriever: HybridRetriever,
+    retriever: Any,  # PineconeRetriever in production; HybridRetriever for rollback
     *,
     top_k: int = 8,
     retrieve_pool: int = 24,
@@ -169,244 +177,177 @@ def answer_query(
             return result
         return func()
 
-    # 0) Config validation (fix: unique stage name)
+    def _finish(resp: Dict[str, Any]) -> Dict[str, Any]:
+        if profiler:
+            profiler.end_total()
+            resp["stage_timings_ms"] = profiler.get_timings()
+        return resp
+
+    def _base(mode: str, *, answer=None, reason=None, snippets=None,
+              is_personal: bool = False, **extra) -> Dict[str, Any]:
+        r: Dict[str, Any] = {
+            "mode": mode,                       # escalate|chitchat|refuse|clarify|abstain|rag|general
+            "answer": answer,                   # final for terminal modes; None for rag/general (LLM fills)
+            "snippets": snippets or [],
+            "is_personal": is_personal,
+            "reason": reason,
+            "refused": mode == "refuse",
+            "abstained": mode == "abstain",
+            # Code-inserted pieces, authored once in guardrails/responses.py.
+            "code": {"source_block": "", "disclaimer": "", "soft_defer": "", "offer": ""},
+        }
+        r.update(extra)
+        return r
+
+    # -1) RED FLAG — highest priority, overrides the whole flow. An active
+    #     emergency does not wait for retrieval. Router-to-help, never a treater.
+    rf = timed_execute("red_flag", lambda: detect_red_flag(query))
+    if rf.escalate:
+        msg = responses.TIER2_SUICIDE if rf.is_suicide else responses.tier2_physical(
+            rf.signals.get("description", "")
+        )
+        return _finish(_base("escalate", answer=msg, reason=f"red_flag_{rf.category}",
+                             red_flag_signals=rf.signals))
+
+    # 0) ROUTER — chitchat lane skips input_validation + specificity + retrieval.
+    rd = timed_execute("router", lambda: classify_lane(query))
+    if rd.lane == "chitchat":
+        return _finish(_base("chitchat", answer=responses.chitchat_response(query),
+                             reason="chitchat", router_signals=rd.signals))
+    is_personal = rd.is_personal
+
+    # 0.5) Config validation
     timed_execute("config_validate", lambda: validate_guardrails_config())
 
-    # 1) Input validation (fix: unique stage name)
-    def validate_input():
-        return validate_query(query)
-
-    ok, err = timed_execute("input_validate", validate_input)
+    # 1) Input validation (medical lane only). too_short -> clarify (don't reject);
+    #    injection/too_long -> abstain.
+    ok, err = timed_execute("input_validate", lambda: validate_query(query))
     if not ok:
-        resp = {
-            "mode": "extractive",
-            "abstained": True,
-            "refused": False,
-            "reason": err,
-            "answer": None,
-            "snippets": [],
-        }
-        if profiler:
-            profiler.end_total()
-            resp["stage_timings_ms"] = profiler.get_timings()
-        return resp
+        if err == "too_short":
+            return _finish(_base("clarify", answer=responses.CLARIFY_NO_ANCHOR, reason="too_short"))
+        return _finish(_base("abstain", reason=err))
 
-    # 2) Safety intent
-    def classify():
-        return classify_intent(query)
-
-    intent, safety_debug = timed_execute("safety_intent", classify)
-
+    # 2) Safety intent (narrowed hard-refuse: individual Dx/Rx/dosing only).
+    intent, safety_debug = timed_execute("safety_intent", lambda: classify_intent(query))
     if intent == "refuse":
-        resp = {
-            "mode": "extractive",
-            "abstained": False,
-            "refused": True,
-            "reason": safety_debug.get("reason"),
-            "safety_intent_debug": safety_debug,
-            "answer": None,
-            "snippets": [],
-        }
-        if profiler:
-            profiler.end_total()
-            resp["stage_timings_ms"] = profiler.get_timings()
-        return resp
+        return _finish(_base("refuse", answer=responses.hard_refuse(),
+                             reason=safety_debug.get("reason"), safety_intent_debug=safety_debug))
 
-    # 3) Specificity
-    def assess_spec():
-        return assess_query_specificity(query)
-
-    sd = timed_execute("specificity", assess_spec)
-
+    # 3) Specificity -> clarify instead of refuse. Anchored-but-vague gets the
+    #    answer-likely-interpretation (general mode) + offer-to-narrow; totally
+    #    vague (no topic anchor) gets ONE clarifying question (topic only).
+    sd = timed_execute("specificity", lambda: assess_query_specificity(query))
+    clarify_offer = False
     if not sd.specific:
-        resp = {
-            "mode": "extractive",
-            "abstained": True,
-            "refused": False,
-            "reason": sd.reason,
-            "specificity_signals": sd.signals,
-            "clarification": sd.clarification,
-            "answer": None,
-            "snippets": [],
-        }
-        if profiler:
-            profiler.end_total()
-            resp["stage_timings_ms"] = profiler.get_timings()
-        return resp
+        # Answer-then-offer is the DEFAULT. Only fall back to a clarifying
+        # question when the query is genuinely referent-less — underspecified
+        # phrasing ("is it high", "what does it mean") OR no substantive content
+        # token at all ("is it bad"). Anything with a real topic anchor (a
+        # disease, concept, biomarker, or drug — "what is rheumatoid arthritis")
+        # is answerable: proceed to retrieval and offer to narrow.
+        sig = sd.signals
+        has_content = bool(
+            sig.get("specific_token_count", 0) >= 1
+            or sig.get("biomarker_hit") or sig.get("drug_like_hit")
+            or sig.get("unit_hit") or sig.get("disease_phrase_hit")
+        )
+        if sig.get("underspecified_hit") or not has_content:
+            return _finish(_base("clarify", answer=responses.CLARIFY_NO_ANCHOR,
+                                 reason="insufficient_context", specificity_signals=sd.signals))
+        clarify_offer = True  # answer the likely reading, then offer to narrow
 
     # 4) Retrieval
     pool_k = max(retrieve_pool, top_k * 3)
+    results, debug = timed_execute("retrieve", lambda: retriever.retrieve(
+        query, top_k=pool_k, max_chunks_per_pmid=max_chunks_per_pmid,
+        oversample_factor=oversample_factor, return_debug=True))
 
-    def retrieve():
-        return retriever.retrieve(
-            query,
-            top_k=pool_k,
-            max_chunks_per_pmid=max_chunks_per_pmid,
-            oversample_factor=oversample_factor,
-            return_debug=True,
-        )
+    # 5) Quality gates — COLLECT pass/fail; do NOT abstain. Weak retrieval now
+    #    falls to general mode (Position B), not an abstain.
+    td = timed_execute("topic_consistency", lambda: apply_topic_consistency(
+        query, results, top_k=top_k, pool_k=pool_k, min_avg_cov=0.18,
+        min_good_chunks=4, good_chunk_threshold=0.20, topic_cov_threshold=0.34))
+    filtered = (td.filtered[:top_k] if td.ok else results[:top_k])
 
-    results, debug = timed_execute("retrieve", retrieve)
+    ok_overlap, ov_signals = timed_execute("overlap_veto", lambda: _overlap_veto(
+        query, filtered, min_hits=veto_min_hits, min_coverage=veto_min_coverage,
+        min_anchor_count=veto_min_anchor_count))
+    ok_mech, mech_signals = timed_execute("mechanism_gate", lambda: mechanism_gate(
+        query, filtered, min_mech_snippets=1))
+    gd = timed_execute("evidence_gate", lambda: evidence_gate(
+        query, filtered, min_distinct_pmids=gate_min_distinct_pmids,
+        min_kw_overlap=gate_min_kw_overlap, require_hybrid_hit=gate_require_hybrid_hit))
 
-    # 5) Topic consistency
-    def topic_consistency():
-        return apply_topic_consistency(
-            query,
-            results,
-            top_k=top_k,
-            pool_k=pool_k,
-            min_avg_cov=0.18,
-            min_good_chunks=4,
-            good_chunk_threshold=0.20,
-            topic_cov_threshold=0.34,
-        )
+    # 6) EVIDENCE-CONFIDENCE FORK (Position B). RAG bar set deliberately HIGH;
+    #    this absorbs the weak-retrieval filtering the disabled require_hybrid_hit
+    #    gate used to do.
+    top_score = max((float(r.get("score", 0.0)) for r in filtered), default=0.0)
+    distinct_pmids = len({str(r.get("pmid")) for r in filtered if r.get("pmid")})
+    # The RAG bar is the evidence-confidence signal (addendum): evidence_gate
+    # decision + a HIGH score + enough distinct PMIDs. The other quality gates
+    # (topic/overlap/mechanism) are advisory signals here, not hard RAG blockers —
+    # their failure no longer abstains (Position B), and gating RAG on all of them
+    # pushed too many legitimate answers into general mode.
+    gates_pass = td.ok and ok_overlap and ok_mech and (gd.decision == "pass")
+    rag_confident = (gd.decision == "pass"
+                     and top_score >= RAG_MIN_TOP_SCORE
+                     and distinct_pmids >= RAG_MIN_DISTINCT_PMIDS)
 
-    td = timed_execute("topic_consistency", topic_consistency)
+    soft_defer = responses.TIER1_SOFT_DEFER if is_personal else ""
+    offer = responses.OFFER_TO_NARROW if clarify_offer else ""
 
-    if not td.ok:
-        resp = {
-            "mode": "extractive",
-            "abstained": True,
-            "refused": False,
-            "reason": td.reason,
-            "topic_signals": td.signals,
-            "debug": debug,
-            "answer": None,
-            "snippets": [],
-        }
-        if profiler:
-            profiler.end_total()
-            resp["stage_timings_ms"] = profiler.get_timings()
-        return resp
+    fork_signals = {
+        "rag_confident": rag_confident, "top_score": round(top_score, 4),
+        "distinct_pmids": distinct_pmids, "rag_min_top_score": RAG_MIN_TOP_SCORE,
+        "rag_min_distinct_pmids": RAG_MIN_DISTINCT_PMIDS, "gates_pass": gates_pass,
+        "topic_ok": td.ok, "overlap_ok": ok_overlap, "mech_ok": ok_mech,
+        "evidence_decision": gd.decision,
+    }
 
-    # Keep only top_k after topic consistency
-    results = td.filtered[:top_k]
+    if rag_confident:
+        composed = compose_extractive(query, filtered, top_k=top_k)
+        snippets = composed.get("snippets", []) or []
+        cd = verify_citations_extract_only(snippets)
+        if cd.ok:
+            resp = _base("rag", reason="rag_confident", snippets=snippets, is_personal=is_personal)
+            resp["code"].update({
+                "source_block": responses.build_source_block(snippets),
+                "soft_defer": soft_defer, "offer": offer,
+            })
+            resp["citation_signals"] = cd.signals
+        else:
+            # Citations couldn't be verified -> fall to general rather than emit bad cites.
+            resp = _base("general", reason="general_after_citation_fail", is_personal=is_personal)
+            resp["code"].update({"disclaimer": responses.GENERAL_MODE_DISCLAIMER,
+                                 "soft_defer": soft_defer, "offer": offer})
+            resp["citation_signals"] = cd.signals
+    else:
+        resp = _base("general", reason="weak_retrieval_general_mode", is_personal=is_personal)
+        resp["code"].update({"disclaimer": responses.GENERAL_MODE_DISCLAIMER,
+                             "soft_defer": soft_defer, "offer": offer})
 
-    # 5.5) Off-topic overlap veto (NEW)
-    def overlap_check():
-        return _overlap_veto(
-            query,
-            results,
-            min_hits=veto_min_hits,
-            min_coverage=veto_min_coverage,
-            min_anchor_count=veto_min_anchor_count,
-        )
-
-    ok_overlap, ov_signals = timed_execute("overlap_veto", overlap_check)
-    if not ok_overlap:
-        resp = {
-            "mode": "extractive",
-            "abstained": True,
-            "refused": False,
-            "reason": "off_topic_retrieval",
-            "overlap_signals": ov_signals,
-            "topic_signals": td.signals,
-            "debug": debug,
-            "answer": None,
-            "snippets": [],
-        }
-        if profiler:
-            profiler.end_total()
-            resp["stage_timings_ms"] = profiler.get_timings()
-        return resp
-    
-    # 5.6) Mechanism-aware gate 
-    def mech_gate():
-        return mechanism_gate(query, results, min_mech_snippets=1)
-
-    ok_mech, mech_signals = timed_execute("mechanism_gate", mech_gate)
-
-    if not ok_mech:
-        resp = {
-            "mode": "extractive",
-            "abstained": True,
-            "refused": False,
-            "reason": "insufficient_mechanistic_evidence",
-            "mechanism_signals": mech_signals,
-            "topic_signals": td.signals,
-            "debug": debug,
-            "answer": None,
-            "snippets": [],
-        }
-        if profiler:
-            profiler.end_total()
-            resp["stage_timings_ms"] = profiler.get_timings()
-        return resp
-
-
-    # 6) Evidence gate
-    def gate():
-        return evidence_gate(
-            query,
-            results,
-            min_distinct_pmids=gate_min_distinct_pmids,
-            min_kw_overlap=gate_min_kw_overlap,
-            require_hybrid_hit=gate_require_hybrid_hit,
-        )
-
-    gd = timed_execute("evidence_gate", gate)
-
-    if gd.decision != "pass":
-        resp = {
-            "mode": "extractive",
-            "abstained": True,
-            "refused": False,
-            "reason": gd.reason,
-            "signals": gd.signals,
-            "topic_signals": td.signals,
-            "overlap_signals": ov_signals,
-            "debug": debug,
-            "answer": None,
-            "snippets": [],
-        }
-        if profiler:
-            profiler.end_total()
-            resp["stage_timings_ms"] = profiler.get_timings()
-        return resp
-
-    # 7) Compose
-    def compose():
-        return compose_extractive(query, results, top_k=top_k)
-
-    resp = timed_execute("compose", compose)
-
-    # Attach signals/debug
-    resp["signals"] = gd.signals
-    resp["topic_signals"] = td.signals
-    resp["overlap_signals"] = ov_signals
     resp["safety_intent_debug"] = safety_debug
     resp["specificity_signals"] = sd.signals
+    resp["topic_signals"] = td.signals
+    resp["overlap_signals"] = ov_signals
+    resp["mechanism_signals"] = mech_signals
+    resp["signals"] = gd.signals
+    resp["fork_signals"] = fork_signals
     resp["debug"] = debug
-
-    # 8) Citation verify
-    def verify():
-        return verify_citations_extract_only(resp.get("snippets", []))
-
-    cd = timed_execute("citation_verify", verify)
-    resp["citation_signals"] = cd.signals
-
-    if not cd.ok:
-        resp["abstained"] = True
-        resp["refused"] = False
-        resp["reason"] = cd.reason
-        resp["answer"] = None
-        resp["snippets"] = []
-
-    if profiler:
-        profiler.end_total()
-        resp["stage_timings_ms"] = profiler.get_timings()
-
-    return resp
+    return _finish(resp)
 
 
 if __name__ == "__main__":
     import os
     from pathlib import Path
     
-    # Use same logic as backend
+    # Rollback CLI: exercise the OLD hybrid retriever directly. Imported locally
+    # so the production import path never pulls faiss into cold start.
+    from retrieval.hybrid_retriever import HybridRetriever
+
     repo_root = Path(__file__).resolve().parent.parent
     indexes_path = repo_root / "kb" / "indexes"
-    
+
     retriever = HybridRetriever(indexes_root=str(indexes_path), years=["2023", "2024"])
 
     tests = [

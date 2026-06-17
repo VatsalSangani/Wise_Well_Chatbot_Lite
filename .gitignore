@@ -75,3 +75,6 @@ docker-compose.yml
 Dockerfile
 Dockerfile.frontend
 
+
+# Orphaned local dataset (26M medical_facts.csv); unused by app/build
+frontend/corpus/

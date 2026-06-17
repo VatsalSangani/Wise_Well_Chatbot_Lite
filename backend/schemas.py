@@ -10,14 +10,36 @@ from typing import Optional, List, Dict, Any
 
 
 class QueryRequest(BaseModel):
-    """Request schema for /query endpoint."""
-    
+    """Request schema for /query endpoint.
+
+    STATELESS DESIGN: each /query is fully independent. No server-side session
+    state. Multi-turn history (optional) is passed by the CLIENT and used ONLY
+    for query rewriting before the guardrails run. The rewrite produces a
+    self-contained standalone query that the guardrails evaluate as a single
+    message (preserving safety isolation).
+
+    See README "Stateless design / scaling" for the reasoning.
+    """
+
     query: str = Field(
         ...,
         description="Medical information query",
         min_length=1,
         max_length=500,
         examples=["What is CRP and what does it indicate?"]
+    )
+    history: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Optional conversation history for follow-up resolution. "
+                    "List of {role: 'user'|'bot', content: str}. "
+                    "Used to rewrite follow-ups into standalone queries.",
+        examples=[
+            [
+                {"role": "user", "content": "What is the common cold?"},
+                {"role": "bot", "content": "The common cold is a viral infection..."},
+                {"role": "user", "content": "general overview"}
+            ]
+        ]
     )
     debug: bool = Field(
         default=False,
@@ -83,8 +105,16 @@ class QueryResponse(BaseModel):
     trace_id: str = Field(..., description="Unique trace ID for request tracking")
     decision: str = Field(
         ...,
-        description="Pipeline decision: ANSWER, ABSTAIN, or REFUSE",
-        pattern="^(ANSWER|ABSTAIN|REFUSE)$"  # Changed from 'regex' to 'pattern'
+        description="Pipeline decision",
+        pattern="^(ANSWER|ABSTAIN|REFUSE|ESCALATE|CHITCHAT|CLARIFY)$"
+    )
+    mode: Optional[str] = Field(
+        None,
+        description="Answer mode: rag|general|escalate|chitchat|refuse|clarify|abstain"
+    )
+    is_personal: Optional[bool] = Field(
+        None,
+        description="Whether the query described the user's own situation (50/50 handling)"
     )
     reason: Optional[str] = Field(
         None,

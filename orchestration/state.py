@@ -16,7 +16,10 @@ class QAState:
     oversample_factor: int = 3
     gate_min_distinct_pmids: int = 1
     gate_min_kw_overlap: float = 0.15
-    gate_require_hybrid_hit: bool = True
+    # Dense-only retrieval (Pinecone): there is no second retriever to "agree"
+    # with, so the bm25+faiss overlap check is disabled. Safety guardrails
+    # (safety_intent, citation_verify) are unaffected.
+    gate_require_hybrid_hit: bool = False
 
     # Stage outputs
     input_ok: Optional[bool] = None

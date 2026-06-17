@@ -2,84 +2,47 @@
 """
 Dependency injection for WiseWell API
 
-Provides singleton retriever instance with proper initialization and error handling.
+Provides the singleton retriever instance.
+
+As of the Pinecone migration this returns the dense PineconeRetriever. The old
+hybrid BM25+FAISS path (retrieval/hybrid_retriever.py + the on-disk indexes)
+is left in place as a rollback — it is simply no longer imported or loaded here.
+To roll back, restore the HybridRetriever wiring below from git history.
 """
 
-import os
-from pathlib import Path
 from functools import lru_cache
 from typing import Optional
 import structlog
 
-from retrieval import hybrid_retriever
+from retrieval.pinecone_retriever import PineconeRetriever, get_pinecone_retriever
 
 logger = structlog.get_logger()
 
 
 @lru_cache(maxsize=1)
-def get_retriever() -> hybrid_retriever.HybridRetriever:
+def get_retriever() -> PineconeRetriever:
     """
-    Get singleton HybridRetriever instance.
-    
-    Loads indexes from environment-configured path and years.
-    Cached to avoid re-initialization on every request.
-    
-    Environment Variables:
-        WISEWELL_INDEXES_ROOT: Path to indexes directory (default: kb/indexes)
-        WISEWELL_YEARS: Comma-separated list of years (default: 2023,2024)
-    
+    Get the singleton dense retriever (Pinecone + SQLite text store).
+
+    Nothing heavy loads here: the Pinecone client, MiniLM, and the SQLite
+    connection are all lazy-loaded on the first query — so this never blocks
+    FastAPI cold start and holds no retrieval data in process RAM. Construction
+    only validates that PINECONE_API_KEY is configured.
+
     Returns:
-        HybridRetriever: Initialized retriever instance
-        
-    Raises:
-        FileNotFoundError: If indexes directory doesn't exist
-        ValueError: If indexes are malformed
+        PineconeRetriever: dense retriever instance.
     """
-    # Get configuration from environment
-    from config import INDEXES_ROOT, WISEWELL_YEARS
-    indexes_path = Path(INDEXES_ROOT)
-    years = WISEWELL_YEARS
-    
-    logger.info(
-        "initializing_retriever",
-        indexes_root=str(indexes_path),
-        years=years,
-    )
-    
-    try:
-        retriever = hybrid_retriever.HybridRetriever(
-            indexes_root=str(indexes_path),
-            years=years,
-            integrity_check=True,  # Validate indexes on load
-        )
-        
-        logger.info(
-            "retriever_initialized",
-            indexes_root=str(retriever.root),
-            years=retriever.years,
-            bm25_indexes=list(retriever.bm25.keys()),
-            faiss_indexes=list(retriever.faiss_index.keys()),
-        )
-        
-        return retriever
-        
-    except FileNotFoundError as e:
-        logger.error(
-            "retriever_initialization_failed",
-            error=str(e),
-            indexes_root=str(indexes_path),
-            years=years,
-        )
-        raise
-    except Exception as e:
-        logger.error(
-            "retriever_initialization_error",
-            error=str(e),
-            error_type=type(e).__name__,
-            indexes_root=str(indexes_path),
-            years=years,
-        )
-        raise
+    from config import PINECONE_API_KEY, PINECONE_INDEX_NAME
+
+    logger.info("initializing_retriever", backend="pinecone", index=PINECONE_INDEX_NAME)
+
+    if not PINECONE_API_KEY:
+        logger.error("retriever_initialization_failed", error="PINECONE_API_KEY not set")
+        raise RuntimeError("PINECONE_API_KEY is not set (add it to .env).")
+
+    retriever = get_pinecone_retriever()
+    logger.info("retriever_initialized", backend="pinecone", index=PINECONE_INDEX_NAME)
+    return retriever
 
 
 def clear_retriever_cache():
@@ -105,19 +68,10 @@ def check_retriever_health() -> tuple[bool, Optional[str]]:
     """
     try:
         retriever = get_retriever()
-        
-        # Basic validation
-        if not retriever.years:
-            return False, "No years configured"
-        
-        if not retriever.bm25:
-            return False, "No BM25 indexes loaded"
-        
-        if not retriever.faiss_index:
-            return False, "No FAISS indexes loaded"
-        
+        if not retriever.index_name:
+            return False, "No Pinecone index configured"
         return True, None
-        
+
     except Exception as e:
         return False, str(e)
 
@@ -127,10 +81,8 @@ if __name__ == "__main__":
     print("Testing retriever initialization...")
     try:
         retriever = get_retriever()
-        print(f"✅ Retriever initialized successfully")
-        print(f"   Indexes root: {retriever.root}")
-        print(f"   Years: {retriever.years}")
-        print(f"   BM25 indexes: {list(retriever.bm25.keys())}")
-        print(f"   FAISS indexes: {list(retriever.faiss_index.keys())}")
+        print("Retriever initialized successfully")
+        print(f"   Backend: pinecone")
+        print(f"   Index: {retriever.index_name}")
     except Exception as e:
-        print(f"❌ Retriever initialization failed: {e}")
+        print(f"Retriever initialization failed: {e}")

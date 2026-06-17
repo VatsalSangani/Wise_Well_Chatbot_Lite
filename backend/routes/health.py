@@ -34,8 +34,8 @@ async def health_check():
         r = get_retriever()
         health["components"]["retriever"] = {
             "status": "healthy",
-            "indexes_root": str(r.root),
-            "years": r.years,
+            "backend": "pinecone",
+            "index": r.index_name,
         }
     except Exception as e:
         health["status"] = "degraded"
