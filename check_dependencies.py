@@ -5,32 +5,52 @@ Dependency Checker for WiseWell Medical RAG Chatbot
 Validates that all required packages are installed and working.
 """
 
+import os
 import sys
 import importlib
 from typing import List, Tuple
 
-# Required packages with their import names
+# Force the torch backend and skip the TensorFlow/Flax import probe (which throws
+# noisy protobuf errors under protobuf>=6). Must be set before importing
+# sentence_transformers. Mirrors config.py so this standalone script matches the app.
+os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("USE_FLAX", "0")
+
+# Windows consoles default to cp1252, which can't encode the ✅/❌ status glyphs.
+# Reconfigure stdout to UTF-8 so the checker prints cleanly everywhere.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+# Required packages — the live serving path (backend + orchestration + retrieval
+# + guardrails). Cross-checked against actual imports; the bot won't run without
+# these. (import name, display name)
 REQUIRED_PACKAGES = [
     ("fastapi", "FastAPI"),
     ("uvicorn", "Uvicorn"),
     ("pydantic", "Pydantic"),
-    ("faiss", "FAISS"),
-    ("sentence_transformers", "SentenceTransformers"),
-    ("pandas", "Pandas"),
-    ("numpy", "NumPy"),
+    ("dotenv", "python-dotenv"),
     ("yaml", "PyYAML"),
-    ("langchain", "LangChain"),
-    ("langgraph", "LangGraph"),
-    ("rank_bm25", "rank-bm25"),
-    ("tqdm", "tqdm"),
-    ("lxml", "lxml"),
+    ("structlog", "Structlog"),
+    ("anthropic", "Anthropic (Claude Haiku synthesis)"),
+    ("pinecone", "Pinecone (dense retrieval)"),
+    ("sentence_transformers", "SentenceTransformers (MiniLM embeddings)"),
+    ("torch", "PyTorch CPU (embeddings backend)"),
 ]
 
+# Optional packages — evaluation & observability. The current implementation uses
+# these, but `orchestration/observability.py` degrades gracefully (no-ops) if they
+# are absent, so the bot still runs without them.
 OPTIONAL_PACKAGES = [
-    ("redis", "Redis"),
-    ("prometheus_client", "Prometheus Client"),
-    ("structlog", "Structlog"),
+    ("langfuse", "Langfuse (LLM tracing)"),
+    ("openai", "OpenAI (GPT-4o-mini RAG-eval judge)"),
+    ("textstat", "textstat (readability metric)"),
 ]
+
+# NOTE: faiss / rank_bm25 / langchain / langgraph belong to the retired
+# BM25+FAISS + LangGraph path (kept only as a dormant rollback) and are NOT
+# required to run the current Pinecone + Anthropic implementation.
 
 
 def check_package(package_name: str, display_name: str) -> Tuple[bool, str]:
