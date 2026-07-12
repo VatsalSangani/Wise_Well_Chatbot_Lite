@@ -5,8 +5,8 @@ Step 4/5 validation: front-door router, red-flag tiers, 50/50 personal handling,
 Position B RAG-vs-general fork, clarify-don't-refuse, and the safety regression.
 
 Exercises the DETERMINISTIC decisions (mode / decision / code-inserted strings)
-through run_wisewell_query — no Bedrock needed (LLM content is generated later in
-query.py). Also prints every code-inserted string so tone can be eyeballed.
+through run_wisewell_query — no LLM synthesis call needed (the Anthropic answer is
+generated later in query.py). Also prints every code-inserted string so tone can be eyeballed.
 
 Run: py scripts/validate_router.py
 """

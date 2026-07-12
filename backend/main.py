@@ -1,6 +1,6 @@
 """
 WiseWell Medical RAG API — entry point
-Pinecone dense retrieval · 8-stage guardrails · AWS Bedrock Claude Haiku
+Pinecone dense retrieval · safety guardrails · Anthropic Claude Haiku synthesis
 """
 
 from dotenv import load_dotenv
@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="WiseWell Medical RAG API",
-    description="Pinecone dense retrieval · 8-stage guardrails · AWS Bedrock Claude Haiku",
+    description="Pinecone dense retrieval · safety guardrails · Anthropic Claude Haiku synthesis",
     version="2.0.0",
     lifespan=lifespan,
 )

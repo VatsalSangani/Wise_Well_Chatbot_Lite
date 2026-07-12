@@ -156,8 +156,8 @@ def latency():
     print(f"    sqlite rehydrate   : avg {avg(2):6.1f} ms   max {mx(2):6.1f} ms")
     print(f"    --------------------------------------------------")
     print(f"    retrieval total    : avg {avg(0)+avg(1)+avg(2):6.1f} ms")
-    print("\n  (Bedrock synthesis is the dominant cost downstream; retrieval should")
-    print("   sit well under it.)")
+    print("\n  (LLM synthesis — Anthropic Claude Haiku — is the dominant cost downstream;")
+    print("   retrieval should sit well under it.)")
 
 
 def refusal():

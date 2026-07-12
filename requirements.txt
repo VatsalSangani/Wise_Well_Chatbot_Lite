@@ -42,7 +42,8 @@ langchain-community
 langgraph
 langsmith
 
-# ── AWS Bedrock (LLM synthesis — IAM role auth, no API key) ───
+# ── AWS SDK (legacy — Bedrock synthesis retired; kept for rollback/tooling) ───
+# LLM synthesis is now the direct Anthropic API (see `anthropic` below), not Bedrock.
 boto3
 
 # ── Logging & monitoring ───────────────────────────────────────

@@ -9,7 +9,7 @@ WHY a seam:
     it eagerly at module import would block FastAPI cold start. So the model is
     lazy-loaded on the first embed() call, behind this function.
   - Keeping the embedder behind one function means swapping MiniLM for a hosted
-    embedder later (e.g. a Pinecone/Bedrock embedding endpoint) is a one-file
+    embedder later (e.g. a hosted embedding endpoint) is a one-file
     change — callers never import SentenceTransformer directly.
 
 Contract: embed(text) -> list[float] of length EMBEDDING_DIM, L2-normalized
